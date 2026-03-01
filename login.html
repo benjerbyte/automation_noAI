@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetOps (no AI) — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black:   #04080f;
+      --dark:    #080d17;
+      --panel:   #0b1120;
+      --border:  #162033;
+      --green:   #00e5a0;
+      --dim:     #3a5a4a;
+      --muted:   #4a6070;
+      --text:    #cde8d8;
+      --bright:  #edfaf3;
+      --error:   #ff5c5c;
+      --mono:    'JetBrains Mono', monospace;
+      --sans:    'Space Grotesk', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--black); color: var(--text); font-family: var(--mono); overflow: hidden; }
+    .bg {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+    .corner { position: fixed; width: 120px; height: 120px; z-index: 1; opacity: 0.25; }
+    .corner-tl { top: 0; left: 0; border-top: 1px solid var(--green); border-left: 1px solid var(--green); }
+    .corner-br { bottom: 0; right: 0; border-bottom: 1px solid var(--green); border-right: 1px solid var(--green); }
+    .statusbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      padding: 6px 24px; display: flex; align-items: center; gap: 16px;
+      background: rgba(4,8,15,0.9); border-bottom: 1px solid var(--border);
+      font-size: 10px; color: var(--muted); letter-spacing: 0.15em;
+    }
+    .statusbar-sep { color: var(--dim); }
+    .main {
+      position: relative; z-index: 5;
+      height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 48px 24px;
+    }
+    .login-wrap { width: 100%; max-width: 480px; }
+    .login-header { margin-bottom: 32px; }
+    .login-logo { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .logo-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--green), #00b8d4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: var(--black);
+    }
+    .logo-text { font-family: var(--sans); font-size: 18px; font-weight: 600; color: var(--bright); }
+    .login-title { font-size: 11px; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 6px; }
+    .login-sub { font-size: 13px; color: var(--text); line-height: 1.5; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+    }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+    .label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+    .label-req { color: var(--green); }
+    .label-opt { color: var(--dim); font-size: 9px; }
+    input, select, textarea {
+      background: rgba(0,0,0,0.4); border: 1px solid var(--border);
+      border-radius: 6px; padding: 9px 12px;
+      color: var(--bright); font-family: var(--mono); font-size: 12px;
+      outline: none; width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--green); }
+    textarea { resize: vertical; min-height: 100px; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .error-box {
+      background: rgba(255,92,92,0.1); border: 1px solid rgba(255,92,92,0.4);
+      border-radius: 6px; padding: 10px 14px; margin-bottom: 16px;
+      font-size: 12px; color: #ffaaaa;
+    }
+    .submit-btn {
+      width: 100%; margin-top: 20px; padding: 12px;
+      background: transparent; border: 1px solid var(--green);
+      border-radius: 6px; color: var(--green); font-family: var(--mono);
+      font-size: 12px; font-weight: 700; letter-spacing: 0.2em;
+      text-transform: uppercase; cursor: pointer;
+    }
+    .submit-btn:hover { background: rgba(0,229,160,0.1); }
+    .field-hint { font-size: 10px; color: var(--dim); margin-top: 2px; }
+    .footer-note { margin-top: 14px; font-size: 10px; color: var(--dim); text-align: center; }
+    .footer-note span { color: var(--green); }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-br"></div>
+  <div class="statusbar">
+    <span>NETOPS</span>
+    <span class="statusbar-sep">//</span>
+    <span>NO AI — YOU ENTER THE COMMAND</span>
+    <span class="statusbar-sep">//</span>
+    <span>AWAITING AUTH</span>
+  </div>
+  <main class="main">
+    <div class="login-wrap">
+      <div class="login-header">
+        <div class="login-logo">
+          <div class="logo-icon">N</div>
+          <span class="logo-text">NetOps (no AI)</span>
+        </div>
+        <div class="login-title">Session initialisation</div>
+        <div class="login-sub">Enter your SSH credentials and optionally register devices. On the next screen you will choose a device and type the exact CLI command (e.g. show interfaces status). No AI — you enter the command yourself. Credentials cached for 24 hours.</div>
+      </div>
+      <div class="card">
+        {% if error %}
+        <div class="error-box">⚠ {{ error }}</div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('login') }}">
+          <div class="field-grid">
+            <div class="field">
+              <label class="label" for="username">Username <span class="label-req">*</span></label>
+              <input type="text" id="username" name="username" placeholder="netops" required autocomplete="username">
+            </div>
+            <div class="field">
+              <label class="label" for="password">Password <span class="label-req">*</span></label>
+              <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+            <div class="field">
+              <label class="label" for="enable_secret">Enable secret <span class="label-opt">(optional)</span></label>
+              <input type="password" id="enable_secret" name="enable_secret" placeholder="IOS enable" autocomplete="off">
+            </div>
+            <div class="field">
+              <label class="label" for="platform">Platform</label>
+              <select id="platform" name="platform">
+                <option value="">Auto-detect</option>
+                <option value="cisco_ios_ssh">Cisco IOS</option>
+                <option value="cisco_nxos_ssh">Cisco NX-OS</option>
+                <option value="arista_eos_ssh">Arista EOS</option>
+                <option value="paloalto_panos">Palo Alto PAN-OS</option>
+                <option value="checkpoint_gaia">Check Point Gaia</option>
+              </select>
+            </div>
+          </div>
+          <hr class="divider">
+          <div class="field">
+            <label class="label" for="devices">Device registry <span class="label-opt">(optional)</span></label>
+            <textarea id="devices" name="devices" placeholder="SW1=192.168.1.1&#10;SW2=192.168.1.2&#10;R1=10.0.0.1" spellcheck="false"></textarea>
+            <span class="field-hint">One per line: NAME=IP. Or leave empty and type an IP/hostname when you run a command.</span>
+          </div>
+          <button type="submit" class="submit-btn">[ INITIALISE SESSION ]</button>
+        </form>
+      </div>
+      <div class="footer-note">Credentials in memory only — cleared after <span>24 hours</span></div>
+    </div>
+  </main>
+</body>
+</html>

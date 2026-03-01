@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetOps (no AI) — Run Command</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black: #04080f;
+      --dark: #080d17;
+      --panel: #0b1120;
+      --border: #162033;
+      --green: #00e5a0;
+      --muted: #4a6070;
+      --text: #cde8d8;
+      --bright: #edfaf3;
+      --error: #ff5c5c;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Space Grotesk', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--black); color: var(--text); font-family: var(--mono); }
+    .header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+      height: 52px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; border-bottom: 1px solid var(--border);
+      background: rgba(4,8,15,0.95);
+    }
+    .header-title { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--bright); }
+    .logout-btn {
+      font-size: 10px; color: var(--muted); letter-spacing: 0.1em;
+      text-decoration: none; padding: 3px 8px; border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .logout-btn:hover { color: var(--error); border-color: rgba(255,92,92,0.4); }
+    .run-wrap {
+      padding: 80px 24px 40px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .run-title { font-size: 14px; color: var(--muted); letter-spacing: 0.15em; margin-bottom: 20px; }
+    .form-row {
+      display: flex; gap: 12px; align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .field { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 6px; }
+    .field-cmd { flex: 2; min-width: 220px; }
+    .label { font-size: 10px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+    input, select {
+      background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 12px;
+      color: var(--bright); font-family: var(--mono); font-size: 13px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--green); }
+    input[type="text"] { width: 100%; }
+    .run-btn {
+      padding: 10px 24px;
+      background: rgba(0,229,160,0.1); border: 1px solid var(--green);
+      border-radius: 6px; color: var(--green); font-family: var(--mono);
+      font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+      cursor: pointer;
+    }
+    .run-btn:hover { background: rgba(0,229,160,0.2); }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .output-wrap { margin-top: 24px; }
+    .output-label { font-size: 10px; color: var(--muted); letter-spacing: 0.15em; margin-bottom: 8px; }
+    .output-pre {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 60vh;
+      overflow-y: auto;
+      color: var(--text);
+    }
+    .output-pre.empty { color: var(--muted); }
+    .output-pre .err { color: #ff8888; }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <span class="header-title">NetOps (no AI) — Run command</span>
+    <a href="{{ url_for('logout') }}" class="logout-btn">LOGOUT</a>
+  </header>
+  <div class="run-wrap">
+    <div class="run-title">DEVICE + COMMAND</div>
+    <div class="form-row">
+      <div class="field">
+        <label class="label" for="device">Device</label>
+        {% if devices %}
+        <select id="device" name="device">
+          {% for d in devices %}
+          <option value="{{ d }}">{{ d }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="text" id="device" name="device" placeholder="SW1 or 192.168.1.1" required>
+        {% endif %}
+      </div>
+      <div class="field field-cmd">
+        <label class="label" for="command">CLI command</label>
+        <input type="text" id="command" name="command" placeholder="show interfaces status" required>
+      </div>
+      <div class="field" style="flex: 0;">
+        <label class="label">&nbsp;</label>
+        <button type="button" class="run-btn" id="run-btn">RUN</button>
+      </div>
+    </div>
+    <p class="hint">Enter the exact command (e.g. show ip route, show version). No AI — output is raw from the device.</p>
+    <div class="output-wrap">
+      <div class="output-label">OUTPUT</div>
+      <pre class="output-pre empty" id="output">Run a command to see output.</pre>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var device = document.getElementById('device');
+      var command = document.getElementById('command');
+      var runBtn = document.getElementById('run-btn');
+      var output = document.getElementById('output');
+      runBtn.addEventListener('click', function () {
+        var dev = (device.value || '').trim();
+        var cmd = (command.value || '').trim();
+        if (!dev || !cmd) {
+          output.textContent = '[ERROR] Device and command are required.';
+          output.classList.remove('empty');
+          output.classList.add('err');
+          return;
+        }
+        runBtn.disabled = true;
+        output.textContent = 'Running...';
+        output.classList.remove('empty');
+        fetch('/api/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device: dev, command: cmd })
+        })
+        .then(function (r) {
+          if (r.status === 401) { window.location.href = '/login'; return null; }
+          return r.json();
+        })
+        .then(function (data) {
+          runBtn.disabled = false;
+          if (!data) return;
+          if (data.error) {
+            output.textContent = data.error;
+            output.classList.add('err');
+          } else {
+            output.textContent = data.output || '(No output)';
+            output.classList.remove('err');
+          }
+        })
+        .catch(function () {
+          runBtn.disabled = false;
+          output.textContent = 'Network error.';
+          output.classList.add('err');
+        });
+      });
+      command.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') runBtn.click();
+      });
+    })();
+  </script>
+</body>
+</html>
