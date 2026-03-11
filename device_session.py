@@ -2,11 +2,13 @@
 Device session: connect using only host (IP or hostname) and credentials.
 No static inventory; credentials are never stored.
 Platform can be selected or auto-detected.
+Supports an optional jump server (bastion host) for SSH proxying.
 """
 import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
+import paramiko
 from netmiko import ConnectHandler
 from netmiko.ssh_autodetect import SSHDetect
 
@@ -69,6 +71,10 @@ class DeviceSession:
         *,
         port: int = 22,
         enable_secret: Optional[str] = None,
+        jump_host: Optional[str] = None,
+        jump_port: int = 22,
+        jump_username: Optional[str] = None,
+        jump_password: Optional[str] = None,
     ):
         """
         host: IP address or hostname of the device.
@@ -79,6 +85,10 @@ class DeviceSession:
                   If None or empty, the device type is auto-detected.
         port: SSH port (default 22).
         enable_secret: Optional enable/privileged password.
+        jump_host: Optional jump server (bastion host) IP or hostname.
+        jump_port: SSH port on the jump server (default 22).
+        jump_username: Username for the jump server.
+        jump_password: Password for the jump server.
         """
         self.host = host.strip()
         self.username = username
@@ -86,7 +96,12 @@ class DeviceSession:
         self.platform = _normalize_platform(platform)  # None means auto-detect
         self.port = port
         self.enable_secret = enable_secret
+        self.jump_host = jump_host.strip() if jump_host else None
+        self.jump_port = jump_port
+        self.jump_username = jump_username
+        self.jump_password = jump_password
         self._connection = None
+        self._jump_client: Optional[paramiko.SSHClient] = None  # kept alive for tunnel
         self._detected_platform: Optional[str] = None  # set after auto-detect
         self._device_hostname: Optional[str] = None  # hostname from device prompt, cached
 
@@ -105,9 +120,34 @@ class DeviceSession:
         except Exception:
             return self.host
 
+    def _open_jump_channel(self) -> Optional[paramiko.Channel]:
+        """Open a direct-tcpip channel from the jump server to the target device."""
+        if not self.jump_host:
+            return None
+        jump = paramiko.SSHClient()
+        jump.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        jump.connect(
+            self.jump_host,
+            port=self.jump_port,
+            username=self.jump_username,
+            password=self.jump_password,
+            timeout=30,
+            look_for_keys=False,
+            allow_agent=False,
+        )
+        self._jump_client = jump
+        transport = jump.get_transport()
+        channel = transport.open_channel(
+            "direct-tcpip",
+            (self.host, self.port),
+            ("127.0.0.1", 0),
+        )
+        return channel
+
     def _connect(self):
         if self._connection is not None:
             return
+        sock = self._open_jump_channel()  # None if no jump server configured
         device_type = self.platform
         if not device_type:
             # Auto-detect: use SSHDetect then connect with detected type
@@ -120,6 +160,8 @@ class DeviceSession:
             }
             if self.enable_secret:
                 params["secret"] = self.enable_secret
+            if sock is not None:
+                params["sock"] = sock
             guesser = SSHDetect(**params)
             device_type = guesser.autodetect()
             if not device_type:
@@ -127,6 +169,9 @@ class DeviceSession:
                     "Could not auto-detect device type. Please select the platform manually."
                 )
             self._detected_platform = device_type
+            # Re-open a fresh channel for the actual connection
+            if self.jump_host:
+                sock = self._open_jump_channel()
         params = {
             "device_type": device_type,
             "host": self.host,
@@ -136,6 +181,8 @@ class DeviceSession:
         }
         if self.enable_secret:
             params["secret"] = self.enable_secret
+        if sock is not None:
+            params["sock"] = sock
         self._connection = ConnectHandler(**params)
         if self._detected_platform and not self.platform:
             self.platform = self._detected_platform
@@ -166,6 +213,12 @@ class DeviceSession:
             except Exception:
                 pass
             self._connection = None
+        if self._jump_client is not None:
+            try:
+                self._jump_client.close()
+            except Exception:
+                pass
+            self._jump_client = None
 
     def view(self, command: str) -> str:
         """Run a show (or any) command and return output. Connection stays open until you call disconnect()."""

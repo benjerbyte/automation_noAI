@@ -39,13 +39,18 @@ def _get_conn_id() -> str:
 
 
 def _store_creds(conn_id: str, username: str, password: str,
-                 enable_secret: Optional[str], platform: Optional[str], devices: dict) -> None:
+                 enable_secret: Optional[str], platform: Optional[str], devices: dict,
+                 jump_host: Optional[str] = None, jump_username: Optional[str] = None,
+                 jump_password: Optional[str] = None) -> None:
     _cred_cache[conn_id] = {
         "username": username,
         "password": password,
         "enable_secret": enable_secret,
         "platform": platform,
         "devices": devices,
+        "jump_host": jump_host,
+        "jump_username": jump_username,
+        "jump_password": jump_password,
         "stored_at": time.time(),
     }
 
@@ -103,6 +108,9 @@ def _get_or_connect(conn_id: str, device_name: str) -> DeviceSession:
         password=creds["password"],
         platform=creds.get("platform"),
         enable_secret=creds.get("enable_secret"),
+        jump_host=creds.get("jump_host"),
+        jump_username=creds.get("jump_username"),
+        jump_password=creds.get("jump_password"),
     )
     ds.connect()
     _active_conns[key] = ds
@@ -158,10 +166,17 @@ def login():
                 name, ip = parts[0].strip().upper(), parts[1].strip()
                 if name and ip:
                     devices[name] = ip
+        use_jump = request.form.get("use_jump") == "1"
+        jump_host = (request.form.get("jump_host") or "").strip() or None if use_jump else None
+        jump_username = (request.form.get("jump_username") or "").strip() or None if use_jump else None
+        jump_password = request.form.get("jump_password") or None if use_jump else None
         if not username or not password:
             error = "Username and password are required."
+        elif use_jump and not jump_host:
+            error = "Jump server IP is required when jump server is enabled."
         else:
-            _store_creds(conn_id, username, password, enable_secret, platform, devices)
+            _store_creds(conn_id, username, password, enable_secret, platform, devices,
+                         jump_host=jump_host, jump_username=jump_username, jump_password=jump_password)
             return redirect(url_for("run"))
     return render_template("login.html", error=error)
 

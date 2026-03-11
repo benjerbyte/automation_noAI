@@ -93,6 +93,15 @@
     .field-hint { font-size: 10px; color: var(--dim); margin-top: 2px; }
     .footer-note { margin-top: 14px; font-size: 10px; color: var(--dim); text-align: center; }
     .footer-note span { color: var(--green); }
+    .jump-toggle { display: flex; align-items: center; gap: 10px; margin-top: 20px; cursor: pointer; }
+    .jump-toggle input[type="checkbox"] { width: auto; accent-color: var(--green); cursor: pointer; }
+    .jump-toggle-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+    .jump-section {
+      margin-top: 14px; padding: 16px;
+      background: rgba(0,229,160,0.03); border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .jump-section-title { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--green); margin-bottom: 12px; }
   </style>
 </head>
 <body>
@@ -152,8 +161,36 @@
             <textarea id="devices" name="devices" placeholder="SW1=192.168.1.1&#10;SW2=192.168.1.2&#10;R1=10.0.0.1" spellcheck="false"></textarea>
             <span class="field-hint">One per line: NAME=IP. Or leave empty and type an IP/hostname when you run a command.</span>
           </div>
+          <hr class="divider">
+          <label class="jump-toggle">
+            <input type="checkbox" id="use_jump" name="use_jump" value="1" onchange="toggleJump(this)">
+            <span class="jump-toggle-label">Use Jump Server (Bastion Host)</span>
+          </label>
+          <div class="jump-section" id="jump_section" style="display:none;">
+            <div class="jump-section-title">// Jump Server Credentials</div>
+            <div class="field-grid">
+              <div class="field" style="margin-top:0;">
+                <label class="label" for="jump_host">Jump Server IP</label>
+                <input type="text" id="jump_host" name="jump_host" placeholder="1.1.1.111" autocomplete="off">
+              </div>
+              <div class="field" style="margin-top:0;">
+                <label class="label" for="jump_username">Jump Username <span class="label-req">*</span></label>
+                <input type="text" id="jump_username" name="jump_username" placeholder="admin" autocomplete="off">
+              </div>
+              <div class="field" style="margin-top:0;">
+                <label class="label" for="jump_password">Jump Password <span class="label-req">*</span></label>
+                <input type="password" id="jump_password" name="jump_password" placeholder="••••••••" autocomplete="off">
+              </div>
+            </div>
+            <span class="field-hint" style="display:block;margin-top:10px;">SSH will tunnel through the jump server to reach the device.</span>
+          </div>
           <button type="submit" class="submit-btn">[ INITIALISE SESSION ]</button>
         </form>
+        <script>
+          function toggleJump(cb) {
+            document.getElementById('jump_section').style.display = cb.checked ? 'block' : 'none';
+          }
+        </script>
       </div>
       <div class="footer-note">Credentials in memory only — cleared after <span>24 hours</span></div>
     </div>
